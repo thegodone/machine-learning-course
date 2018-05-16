@@ -92,6 +92,7 @@ class Bagging(object):
                 idx = random.randint(0, num_data - 1)
                 current_X.append(X[idx])
                 current_y.append(y[idx])
+            print('Vote %d finished ...\n' % i)
             self.base_estimator.fit(current_X, current_y)
             final_pred += self.base_estimator.predict_proba(X_pred)
         return final_pred / (self.num_votes + 0.0)

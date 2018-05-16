@@ -6,7 +6,7 @@ from gensim.models.doc2vec import Doc2Vec, LabeledSentence
 from sklearn import svm
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import AdaBoostClassifier
+from sklearn.ensemble import AdaBoostClassifier, BaggingClassifier
 from model import Bagging
 
 import logging
@@ -117,24 +117,30 @@ def bagging(train_vecs, train_label, test_vecs, base, ground_truth=None, return_
     if base == 'dtree':
         clf = DecisionTreeClassifier(random_state=0,max_depth=30,min_samples_split=10,min_samples_leaf=5)
     else:
-        pclf = svm.LinearSVC(C=0.2)
+        pclf = svm.LinearSVC(C=0.1)
         clf = CalibratedClassifierCV(pclf, method='sigmoid', cv=3)
-    bg = Bagging(clf, 5)
-    pred = bg.pred(train_vecs, train_label, len(train_vecs), 
-        len(test_vecs) + len(train_vecs), 3, np.concatenate((train_vecs, test_vecs)))
-    train_examples = len(train_vecs)
-    pred_train = pred[:train_examples, :]
+    #bg = Bagging(clf, 5)
+    #pred = bg.pred(train_vecs, train_label, len(train_vecs), 
+    #    len(test_vecs) + len(train_vecs), 3, np.concatenate((train_vecs, test_vecs)))
+    
+    #train_examples = len(train_vecs)
+    #pred_train = pred[:train_examples, :]
+    #pred_train = pred_train[:, 2] - pred_train[:, 0]
+    ada = BaggingClassifier(clf, 20, n_jobs=-1)
+    ada.fit(train_vecs, train_label)
+    pred_train = ada.predict_proba(train_vecs)
     pred_train = pred_train[:, 2] - pred_train[:, 0]
-
     print('train_rmse = %.4f' % np.sqrt(np.mean((pred_train - train_label) * (pred_train - train_label))))
 
-    pred_prob = pred[train_examples:, :]
+    pred_prob = ada.predict_proba(test_vecs)
+
+    #pred_prob = pred[train_examples:, :]
     if return_pred:
         pred = pred_prob[:, 2] - pred_prob[:, 0]
         print('valid_rmse = %.4f' % np.sqrt(np.mean((pred - ground_truth) * (pred - ground_truth))))
     else:
-        output = open('bagging_pred.csv', 'w')
-        for i in range(len(pred)):
+        output = open('bagging_%s_pred.csv' % base, 'w')
+        for i in range(len(pred_prob)):
             output.write('%d,%.5f\n' % (i + 1, pred_prob[i][2] - pred_prob[i][0]))
 
 
@@ -145,7 +151,7 @@ def adaboost(train_vecs, train_label, test_vecs, base, ground_truth=None, return
         print('Use svc')
         pclf = svm.LinearSVC(C=1)
         clf = CalibratedClassifierCV(pclf, method='sigmoid', cv=3)
-    ada = AdaBoostClassifier(clf, 2, learning_rate=10)
+    ada = AdaBoostClassifier(clf, 10, learning_rate=1)
     ada.fit(train_vecs, train_label)
     pred_train = ada.predict_proba(train_vecs)
     pred_train = pred_train[:, 2] - pred_train[:, 0]
@@ -192,7 +198,7 @@ test_labelized = labelize_reviews(test, 'TEST')
 size = 400
 epoch_num = 30
 
-make_pred = False
+make_pred = True
 
 if False:
     model_dm, model_dbow = doc2vec_train(train_labelized, test_labelized, size, epoch_num)
@@ -227,8 +233,8 @@ else:
 
     if make_pred:
         # pure linear svm
-        linear_svc(train_vecs, train_label, test_vecs, return_pred=False)
-
+        #linear_svc(train_vecs, train_label, test_vecs, return_pred=False)
+        bagging(train_vecs, train_label, test_vecs, 'svc', ground_truth=None, return_pred=False)
     else:
         train_vecs, valid_vecs = split_data(train_vecs)
         train_label, valid_label = split_data(train_label)
@@ -236,6 +242,6 @@ else:
         # pure linear svm
         # pred = linear_svc(train_vecs, train_label, valid_vecs, ground_truth=ground_truth, return_pred=True)
         # ada boost
-        bagging(train_vecs, train_label, valid_vecs, 'svc', ground_truth=ground_truth, return_pred=True)
+        adaboost(train_vecs, train_label, valid_vecs, 'svc', ground_truth=ground_truth, return_pred=True)
     #pred = bagging(train_vecs, train_label, valid_vecs, 'dtree', return_pred=True)
     #linear_svr(train_vecs, train_label, test_vecs, return_pred=False)
