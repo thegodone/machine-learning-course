@@ -115,7 +115,7 @@ def dtree(train_vecs, train_label, test_vecs, return_pred=False):
 
 def bagging(train_vecs, train_label, test_vecs, base, ground_truth=None, return_pred=False):
     if base == 'dtree':
-        clf = DecisionTreeClassifier(random_state=0,max_depth=30,min_samples_split=10,min_samples_leaf=5)
+        clf = DecisionTreeClassifier(random_state=0,max_depth=10,min_samples_split=10,min_samples_leaf=5)
     else:
         pclf = svm.LinearSVC(C=0.1)
         clf = CalibratedClassifierCV(pclf, method='sigmoid', cv=3)
@@ -234,7 +234,7 @@ else:
     if make_pred:
         # pure linear svm
         #linear_svc(train_vecs, train_label, test_vecs, return_pred=False)
-        bagging(train_vecs, train_label, test_vecs, 'svc', ground_truth=None, return_pred=False)
+        bagging(train_vecs, train_label, test_vecs, 'dtree', ground_truth=None, return_pred=False)
     else:
         train_vecs, valid_vecs = split_data(train_vecs)
         train_label, valid_label = split_data(train_label)
