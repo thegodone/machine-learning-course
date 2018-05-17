@@ -106,7 +106,7 @@ def AdaBoost(X, y, base_estimator, num_votes, num_data, num_test, num_cate, X_pr
     predicts = []
     for t in range(num_votes):
         # estimator
-        pclf = svm.LinearSVC(C=0.01)
+        pclf = svm.LinearSVC()
         clf = CalibratedClassifierCV(pclf, method='sigmoid', cv=3)
 
         # fit

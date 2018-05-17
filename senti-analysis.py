@@ -6,6 +6,8 @@ from gensim.models.doc2vec import Doc2Vec, LabeledSentence
 from sklearn import svm
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.tree import DecisionTreeClassifier
+#from tree import DecisionTreeClassifier
+#from id3.id3 import Id3Estimator
 from sklearn.ensemble import AdaBoostClassifier
 from model import Bagging, AdaBoost
 
@@ -102,15 +104,19 @@ def svc(train_vecs, train_label, test_vecs, return_pred=False):
             output.write('%d,%.5f\n' % (i + 1, max(min(pred[i], 1.0), -1)))
 
 
-def dtree(train_vecs, train_label, test_vecs, return_pred=False):
-    clf = DecisionTreeClassifier(random_state=0,max_depth=30,min_samples_split=10,min_samples_leaf=5)
+def dtree(train_vecs, train_label, test_vecs, ground_truth=True, return_pred=False):
+    clf = DecisionTreeClassifier(max_depth=10,min_samples_split=10,min_samples_leaf=1)
+    #clf = Id3Estimator(prune=True)
     clf.fit(train_vecs, train_label)
+    #clf.prune(1000)
     pred = clf.predict_proba(test_vecs)
 
     pred_train = clf.predict_proba(train_vecs)
     pred_train = pred_train[:, 2] - pred_train[:, 0]
     print('train_rmse = %.4f' % np.sqrt(np.mean((pred_train - train_label) * (pred_train - train_label))))
-    return pred[:, 2] - pred[:, 0]
+    
+    pred = pred[:, 2] - pred[:, 0]
+    print('valid_rmse = %.4f' % np.sqrt(np.mean((pred - ground_truth) * (pred - ground_truth))))
 
 
 def bagging(train_vecs, train_label, test_vecs, base, ground_truth=None, return_pred=False):
@@ -141,13 +147,16 @@ def bagging(train_vecs, train_label, test_vecs, base, ground_truth=None, return_
 def adaboost(train_vecs, train_label, test_vecs, base, ground_truth=None, return_pred=False):
     print('adaboost')
     if base == 'dtree':
-        clf = DecisionTreeClassifier(random_state=0,max_depth=30,min_samples_split=10,min_samples_leaf=5)
+        clf = DecisionTreeClassifier(random_state=0,max_depth=10,min_samples_split=10,min_samples_leaf=5)
     else:
         print('Use svc')
         pclf = svm.LinearSVC(C=1)
         clf = CalibratedClassifierCV(pclf, method='sigmoid', cv=3)
-
-    pred = AdaBoost(train_vecs, train_label, clf, 10, len(train_vecs), len(test_vecs), 3, test_vecs)
+    
+    ada = AdaBoostClassifier(n_estimators=50, learning_rate=1.0)
+    ada.fit(train_vecs, train_label)
+    pred = ada.predict_proba(np.concatenate((train_vecs, test_vecs)))
+    #pred = AdaBoost(train_vecs, train_label, clf, 10, len(train_vecs), len(test_vecs), 3, test_vecs)
     train_examples = len(train_vecs)
     pred_train = pred[:train_examples, :]
     pred_train = pred_train[:, 2] - pred_train[:, 0]
@@ -194,7 +203,7 @@ test_labelized = labelize_reviews(test, 'TEST')
 size = 400
 epoch_num = 30
 
-make_pred = True
+make_pred = False
 
 if False:
     model_dm, model_dbow = doc2vec_train(train_labelized, test_labelized, size, epoch_num)
@@ -238,7 +247,8 @@ else:
         ground_truth = np.array(valid_label)
         # pure linear svm
         # linear_svc(train_vecs, train_label, valid_vecs, ground_truth=ground_truth, return_pred=True)
+        # dtree(train_vecs, train_label, valid_vecs, ground_truth=ground_truth, return_pred=True)
         # ada boost
-        adaboost(train_vecs, train_label, valid_vecs, 'svc', ground_truth=ground_truth, return_pred=True)
+        adaboost(train_vecs, train_label, valid_vecs, 'dtree', ground_truth=ground_truth, return_pred=True)
     #pred = bagging(train_vecs, train_label, valid_vecs, 'dtree', return_pred=True)
     #linear_svr(train_vecs, train_label, test_vecs, return_pred=False)
