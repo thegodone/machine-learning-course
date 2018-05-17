@@ -115,7 +115,7 @@ def dtree(train_vecs, train_label, test_vecs, return_pred=False):
 
 def bagging(train_vecs, train_label, test_vecs, base, ground_truth=None, return_pred=False):
     if base == 'dtree':
-        clf = DecisionTreeClassifier(random_state=0,max_depth=30,min_samples_split=10,min_samples_leaf=5)
+        clf = DecisionTreeClassifier(random_state=0,max_depth=40,min_samples_split=10)
     else:
         pclf = svm.LinearSVC(C=0.1)
         clf = CalibratedClassifierCV(pclf, method='sigmoid', cv=3)
@@ -160,7 +160,7 @@ def adaboost(train_vecs, train_label, test_vecs, base, ground_truth=None, return
         print('valid_rmse = %.4f' % np.sqrt(np.mean((pred - ground_truth) * (pred - ground_truth))))
     else:
         output = open('ada_pred.csv', 'w')
-        for i in range(len(pred)):
+        for i in range(len(pred_prob)):
             output.write('%d,%.5f\n' % (i + 1, pred_prob[i][2] - pred_prob[i][0]))
 
 
