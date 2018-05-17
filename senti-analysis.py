@@ -126,7 +126,7 @@ def bagging(train_vecs, train_label, test_vecs, base, ground_truth=None, return_
     #train_examples = len(train_vecs)
     #pred_train = pred[:train_examples, :]
     #pred_train = pred_train[:, 2] - pred_train[:, 0]
-    ada = BaggingClassifier(clf, 20, n_jobs=-1)
+    ada = BaggingClassifier(clf, 20, n_jobs=5)
     ada.fit(train_vecs, train_label)
     pred_train = ada.predict_proba(train_vecs)
     pred_train = pred_train[:, 2] - pred_train[:, 0]
@@ -210,7 +210,7 @@ else:
     for sentence in train_sentences + test:
         for word in sentence:
             dictionary.add_word(word)
-    dictionary.refactor(10)
+    dictionary.refactor(1)
     print('vocab size = %d' % len(dictionary))
     voc_len = len(dictionary)
     voc_len += 1
@@ -242,6 +242,6 @@ else:
         # pure linear svm
         # pred = linear_svc(train_vecs, train_label, valid_vecs, ground_truth=ground_truth, return_pred=True)
         # ada boost
-        adaboost(train_vecs, train_label, valid_vecs, 'svc', ground_truth=ground_truth, return_pred=True)
+        bagging(train_vecs, train_label, valid_vecs, 'svc', ground_truth=ground_truth, return_pred=True)
     #pred = bagging(train_vecs, train_label, valid_vecs, 'dtree', return_pred=True)
     #linear_svr(train_vecs, train_label, test_vecs, return_pred=False)
