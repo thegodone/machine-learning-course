@@ -1,6 +1,10 @@
 import numpy as np
 from data import Dictionary
 import random
+from sklearn import svm
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import AdaBoostClassifier
 
 # Naive Bayes model for spam e-mail detection
 class NaiveBayes(object):
@@ -95,4 +99,45 @@ class Bagging(object):
             self.base_estimator.fit(current_X, current_y)
             final_pred += self.base_estimator.predict_proba(X_pred)
         return final_pred / (self.num_votes + 0.0)
+
+def AdaBoost(X, y, base_estimator, num_votes, num_data, num_test, num_cate, X_pred):
+    sample_weight = 1.0 / num_data * np.ones((num_data,))
+    weights = []
+    predicts = []
+    for t in range(num_votes):
+        # estimator
+        pclf = svm.LinearSVC(C=0.01)
+        clf = CalibratedClassifierCV(pclf, method='sigmoid', cv=3)
+
+        # fit
+        clf.fit(X, y, sample_weight)
+        error = clf.predict(X) != y
+        error_rate = np.sum(sample_weight * error)
+
+        print('Error rate = %.2f\n' % error_rate)
+        if error_rate > 0.5:
+            num_votes = t
+            break
+
+        beta = error_rate / (1 - error_rate)
+        sample_weight = sample_weight * ((1 - error) * beta + error)
+        sample_weight /= np.sum(sample_weight)
+
+        #weights.append(float(1 / beta))
+        weights.append(float(np.log(1 / beta)))
+        print('Final Prediction')
+        predicts.append(clf.predict_proba(np.concatenate((X, X_pred))))
+
+        print('Solve %d votes' % (t + 1));
+
+    weights_sum = sum(weights)
+    final_pred = np.zeros((num_data + num_test, num_cate))
+    for t in range(num_votes):
+        final_pred += predicts[t] * weights[t] / weights_sum
+    #final_pred = np.exp(final_pred)
+    #final_pred = final_pred / np.sum(final_pred, axis=1, keepdims=True)
+    #print(final_pred)
+    return final_pred
+
+
 

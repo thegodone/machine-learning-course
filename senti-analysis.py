@@ -7,7 +7,7 @@ from sklearn import svm
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import AdaBoostClassifier
-from model import Bagging
+from model import Bagging, AdaBoost
 
 import logging
 import sys
@@ -117,7 +117,7 @@ def bagging(train_vecs, train_label, test_vecs, base, ground_truth=None, return_
     if base == 'dtree':
         clf = DecisionTreeClassifier(random_state=0,max_depth=30,min_samples_split=10,min_samples_leaf=5)
     else:
-        pclf = svm.LinearSVC(C=0.2)
+        pclf = svm.LinearSVC(C=0.1)
         clf = CalibratedClassifierCV(pclf, method='sigmoid', cv=3)
     bg = Bagging(clf, 5)
     pred = bg.pred(train_vecs, train_label, len(train_vecs), 
@@ -139,19 +139,22 @@ def bagging(train_vecs, train_label, test_vecs, base, ground_truth=None, return_
 
 
 def adaboost(train_vecs, train_label, test_vecs, base, ground_truth=None, return_pred=False):
+    print('adaboost')
     if base == 'dtree':
         clf = DecisionTreeClassifier(random_state=0,max_depth=30,min_samples_split=10,min_samples_leaf=5)
     else:
         print('Use svc')
         pclf = svm.LinearSVC(C=1)
         clf = CalibratedClassifierCV(pclf, method='sigmoid', cv=3)
-    ada = AdaBoostClassifier(clf, 2, learning_rate=10)
-    ada.fit(train_vecs, train_label)
-    pred_train = ada.predict_proba(train_vecs)
+
+    pred = AdaBoost(train_vecs, train_label, clf, 10, len(train_vecs), len(test_vecs), 3, test_vecs)
+    train_examples = len(train_vecs)
+    pred_train = pred[:train_examples, :]
     pred_train = pred_train[:, 2] - pred_train[:, 0]
+    pred_prob = pred[train_examples:, :]
+
     print('train_rmse = %.4f' % np.sqrt(np.mean((pred_train - train_label) * (pred_train - train_label))))
 
-    pred_prob = ada.predict_proba(test_vecs)
     if return_pred:
         pred = pred_prob[:, 2] - pred_prob[:, 0]
         print('valid_rmse = %.4f' % np.sqrt(np.mean((pred - ground_truth) * (pred - ground_truth))))
@@ -159,7 +162,6 @@ def adaboost(train_vecs, train_label, test_vecs, base, ground_truth=None, return
         output = open('ada_pred.csv', 'w')
         for i in range(len(pred)):
             output.write('%d,%.5f\n' % (i + 1, pred_prob[i][2] - pred_prob[i][0]))
-
 
 
 def split_data(full_data):
@@ -192,7 +194,7 @@ test_labelized = labelize_reviews(test, 'TEST')
 size = 400
 epoch_num = 30
 
-make_pred = False
+make_pred = True
 
 if False:
     model_dm, model_dbow = doc2vec_train(train_labelized, test_labelized, size, epoch_num)
@@ -204,7 +206,7 @@ else:
     for sentence in train_sentences + test:
         for word in sentence:
             dictionary.add_word(word)
-    dictionary.refactor(10)
+    dictionary.refactor(1)
     print('vocab size = %d' % len(dictionary))
     voc_len = len(dictionary)
     voc_len += 1
@@ -220,22 +222,23 @@ else:
         for word in sentence:
             test_vecs[i, dictionary.word2idx[word]] += 1
             test_vecs[i, voc_len - 1] += 1
-    
+
+    #train_vecs = train_doc2vecs
     train_vecs = np.concatenate((train_vecs, train_doc2vecs), axis=1)
     test_vecs = np.concatenate((test_vecs, test_doc2vecs), axis=1)
     print('feature extraction finished...')
 
     if make_pred:
         # pure linear svm
-        linear_svc(train_vecs, train_label, test_vecs, return_pred=False)
-
+        # linear_svc(train_vecs, train_label, test_vecs, return_pred=False)
+        adaboost(train_vecs, train_label, test_vecs, 'svc', ground_truth=None, return_pred=False)
     else:
         train_vecs, valid_vecs = split_data(train_vecs)
         train_label, valid_label = split_data(train_label)
         ground_truth = np.array(valid_label)
         # pure linear svm
-        # pred = linear_svc(train_vecs, train_label, valid_vecs, ground_truth=ground_truth, return_pred=True)
+        # linear_svc(train_vecs, train_label, valid_vecs, ground_truth=ground_truth, return_pred=True)
         # ada boost
-        bagging(train_vecs, train_label, valid_vecs, 'svc', ground_truth=ground_truth, return_pred=True)
+        adaboost(train_vecs, train_label, valid_vecs, 'svc', ground_truth=ground_truth, return_pred=True)
     #pred = bagging(train_vecs, train_label, valid_vecs, 'dtree', return_pred=True)
     #linear_svr(train_vecs, train_label, test_vecs, return_pred=False)
