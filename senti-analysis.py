@@ -126,7 +126,7 @@ def bagging(train_vecs, train_label, test_vecs, base, ground_truth=None, return_
     #train_examples = len(train_vecs)
     #pred_train = pred[:train_examples, :]
     #pred_train = pred_train[:, 2] - pred_train[:, 0]
-    ada = BaggingClassifier(clf, 20, n_jobs=5)
+    ada = BaggingClassifier(clf, 40, n_jobs=5)
     ada.fit(train_vecs, train_label)
     pred_train = ada.predict_proba(train_vecs)
     pred_train = pred_train[:, 2] - pred_train[:, 0]
@@ -234,7 +234,7 @@ else:
     if make_pred:
         # pure linear svm
         #linear_svc(train_vecs, train_label, test_vecs, return_pred=False)
-        bagging(train_vecs, train_label, test_vecs, 'dtree', ground_truth=None, return_pred=False)
+        bagging(train_vecs, train_label, test_vecs, 'svc', ground_truth=None, return_pred=False)
     else:
         train_vecs, valid_vecs = split_data(train_vecs)
         train_label, valid_label = split_data(train_label)
@@ -242,6 +242,6 @@ else:
         # pure linear svm
         # pred = linear_svc(train_vecs, train_label, valid_vecs, ground_truth=ground_truth, return_pred=True)
         # ada boost
-        bagging(train_vecs, train_label, valid_vecs, 'svc', ground_truth=ground_truth, return_pred=True)
+        bagging(train_vecs, train_label, valid_vecs, 'dtree', ground_truth=ground_truth, return_pred=True)
     #pred = bagging(train_vecs, train_label, valid_vecs, 'dtree', return_pred=True)
     #linear_svr(train_vecs, train_label, test_vecs, return_pred=False)
